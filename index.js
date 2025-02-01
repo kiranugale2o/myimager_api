@@ -9,6 +9,8 @@ const {
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const multer = require("multer");
+const { DatabaseConnection } = require("./src/config/databaseConn");
+const { Project } = require("./src/config/models/Project");
 const upload = multer().single("file"); // This handles single file upload under "file" key
 
 const firebaseConfig = {
@@ -37,8 +39,9 @@ appExpress.use(cors());
 appExpress.use(bodyParser.json());
 
 // Use body-parser to parse URL-encoded bodies
-appExpress.use(bodyParser.urlencoded({ extended: true }));
+appExpress.use(bodyParser.urlencoded({ extended: false }));
 
+DatabaseConnection();
 // Alternatively, you can configure CORS with options:
 // app.use(cors({
 //   origin: 'http://your-frontend-domain.com', // Replace with your frontend domain
@@ -51,7 +54,11 @@ appExpress.get("/", (req, res) => {
   res.send("new version ");
 });
 appExpress.post("/api", upload, async (req, res) => {
-  console.log(req);
+  console.log(req.file);
+
+  const project_key = req.body.project_key;
+  const client_key = req.body.client_key;
+  console.log(project_key, client_key);
 
   const file = req.file; // This is the uploaded file
   if (!file) {
@@ -64,7 +71,23 @@ appExpress.post("/api", upload, async (req, res) => {
       contentType: file.mimetype, // Set the content type explicitly
     });
     const downloadURL = await getDownloadURL(storageRef);
-
+    const data = {
+      name: file?.originalname,
+      url: downloadURL,
+      size: file?.size,
+    };
+    const project = await Project.findByIdAndUpdate(
+      project_key,
+      {
+        $push: {
+          projectData: data, // Push the new post into the "posts" array
+        },
+      },
+      {
+        new: true, // Return the updated document
+        runValidators: true, // Optionally run validators on the update
+      }
+    );
     return res.status(200).json({
       data: {
         url: downloadURL,
