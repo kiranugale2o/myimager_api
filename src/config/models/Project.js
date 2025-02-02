@@ -20,14 +20,15 @@ const ProjectSchema = mongoose.Schema({
   },
   projectData: [
     {
-      name: String,
-      url: String,
-      size: String,
+      name: { type: String },
+      url: { type: String },
+      size: { type: Number },
+      type: { type: String },
+      date: { type: String },
     },
   ],
 });
 
-const Project =
-  mongoose.models.Project || mongoose.model("Project", ProjectSchema);
+const Project = mongoose.model("Project", ProjectSchema);
 
 module.exports = { Project };

@@ -6,11 +6,14 @@ const {
   uploadBytes,
   getDownloadURL,
 } = require("firebase/storage");
+const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const multer = require("multer");
 const { DatabaseConnection } = require("./src/config/databaseConn");
 const { Project } = require("./src/config/models/Project");
+const { User } = require("./src/config/models/User");
+const { liveDate } = require("./src/utils/liveDate");
 const upload = multer().single("file"); // This handles single file upload under "file" key
 
 const firebaseConfig = {
@@ -50,55 +53,76 @@ DatabaseConnection();
 // }));
 
 appExpress.get("/", (req, res) => {
-  console.log("okkkkkkkk");
-  res.send("new version ");
+  res.send(
+    "Welcome To The Myimager !  USE Myimager To manage your website ,app media file with myimager."
+  );
 });
-appExpress.post("/api", upload, async (req, res) => {
-  console.log(req.file);
 
-  const project_key = req.body.project_key;
-  const client_key = req.body.client_key;
-  console.log(project_key, client_key);
-
-  const file = req.file; // This is the uploaded file
-  if (!file) {
-    return res.status(400).json({ message: "No file uploaded" });
-  }
-
+appExpress.post("/api/imageupload", upload, async (req, res) => {
   try {
-    const storageRef = ref(storage, `images/${file.originalname}`);
-    await uploadBytes(storageRef, file.buffer, {
-      contentType: file.mimetype, // Set the content type explicitly
+    const date = liveDate();
+    const project_key = req.body.project_key;
+    const client_key = req.body.client_key;
+    const file = req.file; // This is the uploaded file
+    const user = await User.findOne({
+      _id: new mongoose.Types.ObjectId(client_key),
     });
-    const downloadURL = await getDownloadURL(storageRef);
-    const data = {
-      name: file?.originalname,
-      url: downloadURL,
-      size: file?.size,
-    };
-    const project = await Project.findByIdAndUpdate(
-      project_key,
-      {
-        $push: {
-          projectData: data, // Push the new post into the "posts" array
-        },
-      },
-      {
-        new: true, // Return the updated document
-        runValidators: true, // Optionally run validators on the update
+    if (user) {
+      if (!file) {
+        return res.status(400).json({ message: "No file uploaded" });
       }
-    );
-    return res.status(200).json({
-      data: {
+      const storageRef = ref(storage, `images/${file.originalname}`);
+      await uploadBytes(storageRef, file.buffer, {
+        contentType: file.mimetype, // Set the content type explicitly
+      });
+      const downloadURL = await getDownloadURL(storageRef);
+      const data = {
+        name: file?.originalname,
         url: downloadURL,
-        image_size: file.size,
-        image_name: file.originalname,
-      },
-      message: "success",
-    });
+        size: file?.size / 1024,
+        type: file?.mimetype,
+        date,
+      };
+      const project = await Project.findByIdAndUpdate(
+        project_key,
+        {
+          $push: {
+            projectData: data, // Push the new post into the "posts" array
+          },
+        },
+        {
+          new: true, // Return the updated document
+          runValidators: true, // Optionally run validators on the update
+        }
+      );
+      if (project) {
+        // Calculate the new total project storage (add the new file size)
+        const updatedStorage = project.projectUseStorage + file.size / 1024;
+
+        // Update the project with the new data and the updated storage size
+        project.projectUseStorage = updatedStorage;
+
+        // Save the project with the updated values
+        await project.save();
+
+        return res.status(200).json({
+          data: {
+            url: downloadURL,
+            image_size: file?.size,
+            image_name: file?.originalname,
+            type: file?.mimetype / 1024,
+          },
+          message: "success",
+        });
+      } else {
+        return res.status(400).json({ message: "Project Key Is Invalid" });
+      }
+    } else {
+      return res.status(400).json({ message: "Client Key Is Invalid" });
+    }
   } catch (error) {
     return res.status(500).json({
-      message: "Error uploading file",
+      message: "Invalid credentials",
       error: error.message,
     });
   }
