@@ -14,8 +14,8 @@ const { DatabaseConnection } = require("./src/config/databaseConn");
 const { Project } = require("./src/config/models/Project");
 const { User } = require("./src/config/models/User");
 const { liveDate } = require("./src/utils/liveDate");
-const upload = multer().single("file"); // This handles single file upload under "file" key
-
+const upload = multer().single("file");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const firebaseConfig = {
   apiKey: "AIzaSyD9X4hY1a1W9jOI0LedOvOs8L07bhSVGqg",
   authDomain: "studybuddy-5a2fe.firebaseapp.com",
@@ -124,6 +124,26 @@ appExpress.post("/api/imageupload", upload, async (req, res) => {
     return res.status(500).json({
       message: "Invalid credentials",
       error: error.message,
+    });
+  }
+});
+
+appExpress.post("/api/ai", async (req, res) => {
+  try {
+    const { prompt } = await req.body;
+    const genAI = new GoogleGenerativeAI(
+      "AIzaSyAdtmZj3LdalwG6SRASezWB0Lcc7au5w7k"
+    );
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const result = await model.generateContent(prompt);
+    return res.json({
+      message: result.response.text(),
+    });
+  } catch (error) {
+    return res.json({
+      message: error.message,
+      status: 500,
     });
   }
 });
