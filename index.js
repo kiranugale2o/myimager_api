@@ -16,6 +16,8 @@ const { User } = require("./src/config/models/User");
 const { liveDate } = require("./src/utils/liveDate");
 const upload = multer().single("file");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { monsterApi } = require("@api/monster-api");
+
 const firebaseConfig = {
   apiKey: "AIzaSyD9X4hY1a1W9jOI0LedOvOs8L07bhSVGqg",
   authDomain: "studybuddy-5a2fe.firebaseapp.com",
@@ -146,6 +148,24 @@ appExpress.post("/api/ai", async (req, res) => {
       status: 500,
     });
   }
+});
+
+appExpress.post("/api/texttoimage", async (req, res) => {
+  monsterApi
+    .postGenerateTxt2img({
+      aspect_ratio: "square",
+      guidance_scale: 7.5,
+      negprompt: "deformed, bad anatomy, disfigured, poorly drawn face",
+      prompt:
+        "detailed sketch of lion by greg rutkowski, beautiful, intricate, ultra realistic, elegant, art by artgerm",
+      safe_filter: true,
+      samples: 1,
+      seed: 2414,
+      steps: 15,
+      style: "anime",
+    })
+    .then(({ data }) => console.log(data))
+    .catch((err) => console.error(err));
 });
 
 // Start the server
